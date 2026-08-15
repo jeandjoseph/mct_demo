@@ -86,6 +86,8 @@ az containerapp create \
   --environment "$ACA_ENVIRONMENT" \
   --image "$ACR_SERVER/$CONTAINER_IMAGE" \
   --ingress external \
+  --min-replicas 0 \
+  --max-replicas 3 \
   --target-port "$TARGET_PORT" \
   --env-vars MODEL_NAME="$MODEL_NAME" \
   --registry-server "$ACR_SERVER" \

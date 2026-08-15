@@ -1,1 +1,2 @@
 No need for instructor to demo lab 4. have the learners do the lab.
+I suggest to first create the aks cluster then during the live demo attach the acr to aks

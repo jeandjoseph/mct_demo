@@ -1,0 +1,14 @@
+{
+    "indexingMode": "consistent",
+    "automatic": true,
+    "includedPaths": [
+        { "path": "/*" }
+    ],
+    "excludedPaths": [
+        { "path": "/reviewTextVector/*" },
+        { "path": "/\"_etag\"/?" }
+    ],
+    "vectorIndexes": [
+        { "path": "/reviewTextVector", "type": "flat" }
+    ]
+}

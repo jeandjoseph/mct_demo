@@ -43,6 +43,9 @@
 
 set -euo pipefail
 
+
+#ref: mct_demo/tree/main/azure_ai_200/cosmos-nosql-rag-webapp
+
 ###############################################################################
 # STEP 0 — EDIT THESE VALUES before running
 ###############################################################################
@@ -62,13 +65,13 @@ EMBEDDING_MODEL_NAME="text-embedding-3-small"
 EMBEDDING_MODEL_VERSION="1"
 EMBEDDING_DIMENSIONS=256                    # kept small so a 'flat' (exact) index can be used
 
-CHAT_DEPLOYMENT="gpt-5.4-mini"
-CHAT_MODEL_NAME="gpt-5.4-mini"
-CHAT_MODEL_VERSION="2024-12-01-preview"
+CHAT_DEPLOYMENT="gpt-5-nano"
+CHAT_MODEL_NAME="gpt-5-nano"
+CHAT_MODEL_VERSION="2025-08-07"
 
-WORK_DIR="$(pwd)/cosmos-rag-demo"
+WORK_DIR="$(pwd)/cosmosdb"
 VENV_DIR="${WORK_DIR}/.venv"
-SALES_DATA_FILE="${WORK_DIR}/saleshistory.json"
+SALES_DATA_FILE="saleshistory.json"
 
 step() { echo; echo "==> $1"; echo; }
 
@@ -164,7 +167,7 @@ else
 fi
 
 ###############################################################################
-# STEP 7 — Create the NOSQL database
+# STEP 7 — Create the SQL database
 ###############################################################################
 step "STEP 7: Creating database '$COSMOS_DATABASE'"
 az cosmosdb sql database create \
@@ -332,19 +335,9 @@ EOF
 
 echo "Generated $(python3 -c "import json;print(len(json.load(open('$SALES_DATA_FILE'))))") transactions in $SALES_DATA_FILE"
 
-###############################################################################
-# STEP 12 — Python environment
-###############################################################################
-step "STEP 12: Setting up Python virtual environment"
-python3 -m venv "$VENV_DIR"
-# shellcheck disable=SC1091
-source "${VENV_DIR}/bin/activate"
-pip install --quiet --upgrade pip
-pip install --quiet "azure-cosmos>=4.7.0" "azure-identity>=1.17.0" "openai>=1.40.0"
-echo "Python environment ready."
 
 ###############################################################################
-# STEP 13 — Write the embedding/load script
+# STEP 12 — Write the embedding/load script
 ###############################################################################
 step "STEP 13: Writing load_and_embed.py"
 cat > load_and_embed.py << 'PYEOF'
@@ -361,13 +354,17 @@ from azure.cosmos import CosmosClient
 from azure.identity import DefaultAzureCredential
 from openai import AzureOpenAI
 
-COSMOS_ENDPOINT = os.environ["COSMOS_ENDPOINT"]
-DATABASE_NAME = os.environ["COSMOS_DATABASE"]
-CONTAINER_NAME = os.environ["COSMOS_CONTAINER"]
+# .strip() guards against hidden \r/\n/space characters that can end up in
+# these values when they're captured from CLI output (a common issue on
+# Windows/WSL setups where a Windows-native az.exe returns CRLF line endings).
+# An un-stripped endpoint causes a confusing "Bad Request - Invalid URL" error.
+COSMOS_ENDPOINT = os.environ["COSMOS_ENDPOINT"].strip()
+DATABASE_NAME = os.environ["COSMOS_DATABASE"].strip()
+CONTAINER_NAME = os.environ["COSMOS_CONTAINER"].strip()
 
-AOAI_ENDPOINT = os.environ["AOAI_ENDPOINT"]
-AOAI_KEY = os.environ["AOAI_KEY"]
-AOAI_EMBED_DEPLOYMENT = os.environ["AOAI_EMBED_DEPLOYMENT"]
+AOAI_ENDPOINT = os.environ["AOAI_ENDPOINT"].strip()
+AOAI_KEY = os.environ["AOAI_KEY"].strip()
+AOAI_EMBED_DEPLOYMENT = os.environ["AOAI_EMBED_DEPLOYMENT"].strip()
 EMBED_DIMENSIONS = int(os.environ.get("EMBED_DIMENSIONS", "256"))
 
 DATA_FILE = os.environ.get("SALES_DATA_FILE", "saleshistory.json")
@@ -420,7 +417,7 @@ PYEOF
 echo "load_and_embed.py written."
 
 ###############################################################################
-# STEP 14 — Write the RAG query script (retrieval + generation)
+# STEP 13 — Write the RAG query script (retrieval + generation)
 ###############################################################################
 step "STEP 14: Writing query_rag.py"
 cat > query_rag.py << 'PYEOF'
@@ -440,14 +437,16 @@ from azure.cosmos import CosmosClient
 from azure.identity import DefaultAzureCredential
 from openai import AzureOpenAI
 
-COSMOS_ENDPOINT = os.environ["COSMOS_ENDPOINT"]
-DATABASE_NAME = os.environ["COSMOS_DATABASE"]
-CONTAINER_NAME = os.environ["COSMOS_CONTAINER"]
+# .strip() guards against hidden \r/\n/space characters picked up from CLI
+# output capture (see the comment in load_and_embed.py for why).
+COSMOS_ENDPOINT = os.environ["COSMOS_ENDPOINT"].strip()
+DATABASE_NAME = os.environ["COSMOS_DATABASE"].strip()
+CONTAINER_NAME = os.environ["COSMOS_CONTAINER"].strip()
 
-AOAI_ENDPOINT = os.environ["AOAI_ENDPOINT"]
-AOAI_KEY = os.environ["AOAI_KEY"]
-AOAI_EMBED_DEPLOYMENT = os.environ["AOAI_EMBED_DEPLOYMENT"]
-AOAI_CHAT_DEPLOYMENT = os.environ["AOAI_CHAT_DEPLOYMENT"]
+AOAI_ENDPOINT = os.environ["AOAI_ENDPOINT"].strip()
+AOAI_KEY = os.environ["AOAI_KEY"].strip()
+AOAI_EMBED_DEPLOYMENT = os.environ["AOAI_EMBED_DEPLOYMENT"].strip()
+AOAI_CHAT_DEPLOYMENT = os.environ["AOAI_CHAT_DEPLOYMENT"].strip()
 EMBED_DIMENSIONS = int(os.environ.get("EMBED_DIMENSIONS", "256"))
 TOP_K = int(os.environ.get("TOP_K", "5"))
 
@@ -483,13 +482,16 @@ def generate_answer(client, question, retrieved):
     )
     user_prompt = f"Context:\n{context}\n\nQuestion: {question}"
 
+    # No explicit 'temperature' override here on purpose: some newer models
+    # (e.g. the GPT-5 reasoning-family models like gpt-5-nano) only support
+    # the default value and reject any override with a 400 error. Omitting
+    # it keeps this script working across model families without branching.
     response = client.chat.completions.create(
         model=AOAI_CHAT_DEPLOYMENT,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},
         ],
-        temperature=0.2,
     )
     return response.choices[0].message.content
 
@@ -520,37 +522,59 @@ if __name__ == "__main__":
 PYEOF
 echo "query_rag.py written."
 
+
 ###############################################################################
-# STEP 15 — Run the loader: embed + upsert all 27 transactions
+# STEP 14 — Save environment variables for webapp
 ###############################################################################
-#cat > .env << EOF
-#COSMOS_ENDPOINT="$COSMOS_ENDPOINT"
-#COSMOS_DATABASE="$COSMOS_DATABASE"
-#COSMOS_CONTAINER="$COSMOS_CONTAINER"
-#AOAI_ENDPOINT="$AOAI_ENDPOINT"
-#AOAI_KEY="$AOAI_KEY"
-#AOAI_EMBED_DEPLOYMENT="$EMBEDDING_DEPLOYMENT"
-#AOAI_CHAT_DEPLOYMENT="$CHAT_DEPLOYMENT"
-#EMBED_DIMENSIONS="$EMBEDDING_DIMENSIONS"
-#SALES_DATA_FILE="$SALES_DATA_FILE"
-#EOF
 
-curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-hash -r          # forget the cached path to the old az
-which az         # should now show /usr/bin/az
+pwd
 
-az login --use-device-code
+cat > ../webapp/.env << EOF
+COSMOS_ENDPOINT="$COSMOS_ENDPOINT"
+COSMOS_DATABASE="$COSMOS_DATABASE"
+COSMOS_CONTAINER="$COSMOS_CONTAINER"
+AOAI_ENDPOINT="$AOAI_ENDPOINT"
+AOAI_KEY="$AOAI_KEY"
+AOAI_EMBED_DEPLOYMENT="$EMBEDDING_DEPLOYMENT"
+AOAI_CHAT_DEPLOYMENT="$CHAT_DEPLOYMENT"
+EMBED_DIMENSIONS="$EMBEDDING_DIMENSIONS"
+SALES_DATA_FILE="$SALES_DATA_FILE"
+EOF
 
 
-step "STEP 15: Embedding and loading transactions into Cosmos DB"
+###############################################################################
+# STEP 16 — export env vars and run the loader script to embed and load transactions into Cosmos DB
+###############################################################################
+step "STEP 16: Embedding and loading transactions into Cosmos DB"
+
+export COSMOS_ENDPOINT COSMOS_DATABASE COSMOS_CONTAINER
+export AOAI_ENDPOINT AOAI_KEY
+export AOAI_EMBED_DEPLOYMENT="$EMBEDDING_DEPLOYMENT"
+export AOAI_CHAT_DEPLOYMENT="$CHAT_DEPLOYMENT"
+export EMBED_DIMENSIONS="$EMBEDDING_DIMENSIONS"
+export SALES_DATA_FILE
+
+# use below scripts only if above steps fail to run the loader
+#sed -i 's/os.environ\["COSMOS_ENDPOINT"\]/os.environ["COSMOS_ENDPOINT"].strip()/' load_and_embed.py query_rag.py
+#sed -i 's/os.environ\["AOAI_ENDPOINT"\]/os.environ["AOAI_ENDPOINT"].strip()/' load_and_embed.py query_rag.py
+#sed -i 's/os.environ\["AOAI_KEY"\]/os.environ["AOAI_KEY"].strip()/' load_and_embed.py query_rag.py
 
 
-sed -i 's/os.environ\["COSMOS_ENDPOINT"\]/os.environ["COSMOS_ENDPOINT"].strip()/' load_and_embed.py query_rag.py
-sed -i 's/os.environ\["AOAI_ENDPOINT"\]/os.environ["AOAI_ENDPOINT"].strip()/' load_and_embed.py query_rag.py
-sed -i 's/os.environ\["AOAI_KEY"\]/os.environ["AOAI_KEY"].strip()/' load_and_embed.py query_rag.py
+step "STEP 15: Setting up Python virtual environment"
+python3 -m venv "$VENV_DIR"
+# shellcheck disable=SC1091
+source "${VENV_DIR}/bin/activate"
+pip install --quiet --upgrade pip
+pip install --quiet "azure-cosmos>=4.7.0" "azure-identity>=1.17.0" "openai>=1.40.0" "python-dotenv"
+echo "Python environment ready."
+
+#pip install azure-cosmos azure-identity openai python-dotenv
+
+#az login --use-device-code
+
+
 
 python3 load_and_embed.py
-
 
 ###############################################################################
 # STEP 16 — Run sample RAG queries
@@ -562,6 +586,19 @@ echo
 echo "----------------------------------------------------------------------"
 echo
 python3 query_rag.py "What do customers say about the backpack's waterproofing?"
+
+
+
+
+###############################################################################
+# TRY UI APP
+###############################################################################
+cd ../webapp
+#source ../cosmos-rag-demo/.venv/bin/activate   # reuse your existing venv
+pip install -r requirements.txt
+python3 app.py
+
+
 
 ###############################################################################
 # DONE

@@ -1,2 +1,3 @@
-No need for instructor to demo lab 4. have the learners do the lab.
-I suggest to first create the aks cluster then during the live demo attach the acr to aks
+- There’s no need for the instructor to demo Lab 4 — have the learners complete that lab on their own.
+- For the live demo, I recommend creating the AKS cluster first, and then attaching the ACR to AKS during the walkthrough.
+- For the PostgreSQL and Redis labs, create both services upfront, and then proceed with the live demo steps.

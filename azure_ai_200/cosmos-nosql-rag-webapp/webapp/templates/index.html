@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cosmos RAG Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="bg-glow" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">&#9670;</span>
+    <span class="brand-name">Cosmos RAG Explorer</span>
+  </div>
+  <div class="config-strip">
+    <span><em>db</em> {{ database }}<span class="sep">/</span>{{ container }}</span>
+    <span><em>embed</em> {{ embed_deployment }} <span class="dim">{{ dimensions }}d</span></span>
+    <span><em>chat</em> {{ chat_deployment }}</span>
+  </div>
+</header>
+
+<main>
+
+  <section class="hero">
+    <p class="eyebrow">Azure Cosmos DB &middot; vector search demo</p>
+    <h1>Ask the reviews.</h1>
+    <p class="subhead">
+      Type a question about customer feedback. Watch it become a vector,
+      search 27 real transactions with Cosmos DB's <code>VectorDistance</code>,
+      and come back as a grounded answer &mdash; with timing for every step.
+    </p>
+  </section>
+
+  <section class="ask-panel">
+    <form id="ask-form" autocomplete="off">
+      <div class="input-row">
+        <input
+          type="text"
+          id="question-input"
+          name="question"
+          placeholder="e.g. Which products had complaints about durability?"
+          maxlength="300"
+          autofocus
+          required>
+        <button type="submit" id="ask-button">
+          <span class="btn-label">Ask</span>
+          <span class="btn-spinner" hidden></span>
+        </button>
+      </div>
+
+      <div class="options-row">
+        <div class="chips" id="example-chips">
+          <button type="button" class="chip" data-q="Which customers complained about battery life or durability?">battery / durability</button>
+          <button type="button" class="chip" data-q="What do customers say about the backpack's waterproofing?">backpack waterproofing</button>
+          <button type="button" class="chip" data-q="Which reviews mention the coffee maker's buttons or display?">coffee maker UI</button>
+          <button type="button" class="chip" data-q="Show me the most positive feedback about the yoga mat.">yoga mat praise</button>
+        </div>
+
+        <label class="topk-control">
+          results
+          <select id="top-k-select">
+            <option value="3">3</option>
+            <option value="5" selected>5</option>
+            <option value="8">8</option>
+            <option value="10">10</option>
+          </select>
+        </label>
+      </div>
+    </form>
+
+    <div id="recent-questions" class="recent-questions" hidden>
+      <span class="recent-label">recent</span>
+      <div class="recent-list" id="recent-list"></div>
+    </div>
+  </section>
+
+  <section class="pipeline" id="pipeline" hidden aria-live="polite">
+    <div class="step" data-step="embedding" id="step-embedding">
+      <div class="step-marker"><span class="step-num">1</span><span class="step-check">&#10003;</span></div>
+      <div class="step-body">
+        <div class="step-title">Vectorize</div>
+        <div class="step-detail">Turning your question into a {{ dimensions }}-dimension vector</div>
+      </div>
+      <div class="step-time" id="time-embedding"></div>
+    </div>
+
+    <div class="step-line" id="line-1"></div>
+
+    <div class="step" data-step="retrieval" id="step-retrieval">
+      <div class="step-marker"><span class="step-num">2</span><span class="step-check">&#10003;</span></div>
+      <div class="step-body">
+        <div class="step-title">Search</div>
+        <div class="step-detail">Matching against reviews with Cosmos DB VectorDistance</div>
+      </div>
+      <div class="step-time" id="time-retrieval"></div>
+    </div>
+
+    <div class="step-line" id="line-2"></div>
+
+    <div class="step" data-step="generation" id="step-generation">
+      <div class="step-marker"><span class="step-num">3</span><span class="step-check">&#10003;</span></div>
+      <div class="step-body">
+        <div class="step-title">Answer</div>
+        <div class="step-detail">Writing a grounded answer from the closest matches</div>
+      </div>
+      <div class="step-time" id="time-generation"></div>
+    </div>
+  </section>
+
+  <section id="error-banner" class="error-banner" hidden></section>
+
+  <section id="results" class="results" hidden>
+
+    <div class="results-grid">
+      <div class="evidence-panel">
+        <div class="section-label">Evidence <span class="dim" id="evidence-count"></span></div>
+        <div id="evidence-list" class="evidence-list"></div>
+      </div>
+
+      <div class="vector-panel">
+        <div class="section-label">Vector space <span class="dim">closer = more similar</span></div>
+        <div id="vector-plot-wrap" class="vector-plot-wrap"></div>
+        <div id="vector-legend" class="vector-legend"></div>
+      </div>
+    </div>
+
+    <div class="answer-card" id="answer-card">
+      <div class="answer-label">Answer</div>
+      <p id="answer-text" class="answer-text"></p>
+      <div class="answer-skeleton" id="answer-skeleton">
+        <span></span><span></span><span></span>
+      </div>
+      <button id="copy-answer" class="copy-btn" type="button" hidden>copy</button>
+    </div>
+
+    <div class="timing-footer" id="timing-footer" hidden>
+      <div class="timing-bar" id="timing-bar"></div>
+      <div class="timing-row">
+        <div class="timing-legend" id="timing-legend"></div>
+        <div class="timing-total">total <span id="timing-total-value"></span></div>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<footer>
+  <p>Teaching demo &middot; retrieval-augmented generation over Azure Cosmos DB's native vector search.</p>
+</footer>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

@@ -44,7 +44,7 @@
 set -euo pipefail
 
 
-#ref: mct_demo/tree/main/azure_ai_200/cosmos-nosql-rag-webapp
+#ref: mct_demo/tree/main/azure_ai_200/az_psql_redis_rag_webapp
 
 ###############################################################################
 # STEP 0 — EDIT THESE VALUES before running

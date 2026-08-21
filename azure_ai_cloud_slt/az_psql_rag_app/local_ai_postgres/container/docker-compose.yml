@@ -1,0 +1,18 @@
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: local_postgresql
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: AdminPass123!
+      POSTGRES_DB: demo_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    restart: unless-stopped
+
+volumes:
+  pgdata:

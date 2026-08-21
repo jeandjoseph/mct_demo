@@ -1,0 +1,13 @@
+streamlit
+pandas
+psycopg2-binary
+python-dotenv
+requests
+sentence-transformers
+transformers
+torch
+sentencepiece
+vaderSentiment
+presidio-analyzer
+presidio-anonymizer
+spacy

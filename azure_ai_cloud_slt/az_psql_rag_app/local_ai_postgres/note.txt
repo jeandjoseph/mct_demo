@@ -1,0 +1,55 @@
+cd C:\demo_poc\az-postgresql\container
+
+# build with the corrected Compose file
+docker compose up -d --build
+
+# Check logs
+docker logs local_postgresql
+
+# check container status
+docker ps -a
+
+# Connect to docker container postgresql
+docker exec -it local_postgresql psql -U admin -d demo_db
+
+### List tables created by your first script
+\dt
+
+
+### List functions created by your second script
+\df
+
+
+### ✔ To exit that screen and return back to the psql prompt:
+q
+
+### exit from postgresql
+\q
+
+# Stop and delete the broken container + volume
+docker compose down -v
+
+
+
+
+# install local embedings model
+# after installation, we will bge-small-en-v1.5 for embedings
+# from sentence_transformers import SentenceTransformer
+# model = SentenceTransformer("BAAI/bge-small-en-v1.5")
+python -m pip install --upgrade pip
+python -m pip install sentence-transformers
+pip install sentence-transformers psycopg2-binary
+
+
+# install very tiny local summarization model, I recommend:
+pip install transformers torch sentencepiece psycopg2-binary vaderSentiment
+
+
+# install pii package
+pip install presidio-analyzer presidio-anonymizer
+
+pip install streamlit pandas psycopg2-binary python-dotenv sentence-transformers
+
+pip install presidio-analyzer presidio-anonymizer spacy
+
+python -m spacy download en_core_web_lg

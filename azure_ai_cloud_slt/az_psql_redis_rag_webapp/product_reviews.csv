@@ -1,0 +1,16 @@
+review_id,product_id,review_text,review_date
+1,P1,"This wireless mouse is super comfortable and the battery lasts forever.",2026-01-10
+2,P1,"Tracking is a bit jumpy on glass surfaces, not what I expected.",2026-01-18
+3,P1,"Solid budget mouse, does exactly what it says.",2026-02-01
+4,P2,"The mechanical keyboard feels amazing to type on, worth every penny.",2026-01-11
+5,P2,"Way too loud for an open office, my coworkers complained.",2026-01-19
+6,P2,"Great build quality but the software for remapping keys is clunky.",2026-02-02
+7,P3,"This USB-C hub finally let me use two monitors without lag.",2026-01-12
+8,P3,"One of the ports stopped working after two weeks of light use.",2026-01-20
+9,P3,"Compact, cool to the touch, and transfers files quickly.",2026-02-03
+10,P4,"Video quality on this webcam is crisp even in low light.",2026-01-13
+11,P4,"Autofocus hunts constantly during video calls, pretty distracting.",2026-01-21
+12,P4,"Good value webcam, easy plug and play setup on my laptop.",2026-02-04
+13,P5,"This laptop stand fixed my neck pain from looking down all day.",2026-01-14
+14,P5,"Wobbles a little at the max height setting, wish it were sturdier.",2026-01-22
+15,P5,"Lightweight, folds flat for travel, exactly what I needed.",2026-02-05

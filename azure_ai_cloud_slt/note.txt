@@ -1,0 +1,5 @@
+AI-200
+- There’s no need for the instructor to demo Lab 4 — have the learners complete that lab on their own.
+- For the live demo, I recommend creating the AKS cluster first, and then attaching the ACR to AKS during the walkthrough.
+- For the PostgreSQL and Redis labs, create both services upfront, and then proceed with the live demo steps.
+- 9_az_build_rag_document_on_cosmosdb_nosql.sh is use for both the PostgreSQL and Redis labs
